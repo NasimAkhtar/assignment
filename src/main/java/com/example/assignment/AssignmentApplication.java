@@ -8,7 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class AssignmentApplication {
 
-	private static final Logger log = LoggerFactory.getLogger(AssignmentApplication.class);
+	private static final Logger logger = LoggerFactory.getLogger(AssignmentApplication.class);
 
 	public static void main(String[] args) {
 		SpringApplication.run(AssignmentApplication.class, args);
