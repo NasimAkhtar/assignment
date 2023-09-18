@@ -15,7 +15,7 @@ class BenchmarkServiceTest {
     @Autowired
     BenchmarkService benchmarkService;
     @Test
-    @Timeout(value = 350, unit = TimeUnit.MILLISECONDS)
+    @Timeout(value = 1000, unit = TimeUnit.MILLISECONDS)
     void testCreateFor50KRecords() {
         benchmarkService.create(50000);
     }

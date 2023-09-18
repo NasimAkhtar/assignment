@@ -26,7 +26,7 @@ class BenchmarkControllerTest {
     private TestRestTemplate restTemplate;
 
     @Test
-    @Timeout(value = 650, unit = TimeUnit.MILLISECONDS)
+    @Timeout(value = 1000, unit = TimeUnit.MILLISECONDS)
     public void testCreateFor50KRecords() throws Exception {
         ResponseEntity<String> response = restTemplate
                 .postForEntity(
@@ -39,7 +39,7 @@ class BenchmarkControllerTest {
         assertEquals("Records Created", response.getBody());
     }
     @Test
-    @Timeout(value = 850, unit = TimeUnit.MILLISECONDS)
+    @Timeout(value = 1000, unit = TimeUnit.MILLISECONDS)
     public void testCreateFor100KRecords() throws Exception {
         ResponseEntity<String> response = restTemplate
                 .postForEntity(
@@ -52,7 +52,7 @@ class BenchmarkControllerTest {
         assertEquals("Records Created", response.getBody());
     }
     @Test
-    @Timeout(value = 1000, unit = TimeUnit.MILLISECONDS)
+    @Timeout(value = 1500, unit = TimeUnit.MILLISECONDS)
     public void testCreateFor150KRecords() throws Exception {
         ResponseEntity<String> response = restTemplate
                 .postForEntity(

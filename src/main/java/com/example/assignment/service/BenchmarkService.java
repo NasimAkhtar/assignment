@@ -11,13 +11,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.sql.*;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -26,23 +21,34 @@ public class BenchmarkService {
 
     private static final Logger logger = LoggerFactory.getLogger(BenchmarkService.class);
     private static final String SQL_INSERT = "INSERT INTO benchmark (id, unique_code) VALUES (?, ?)";
+    private static final Set<String> CACHE = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    public static final String SQL_MAX_ROW_ID = "select max(id) from public.benchmark";
+
+    public static AtomicLong MAX_ROW_ID = new AtomicLong(0);
+
     @Autowired
     BenchmarkRepository repository;
 
     @Autowired
     HikariDataSource hikariDataSource;
 
-    public void create(int counts) {
-        AtomicLong atomicLong = new AtomicLong(0);
+    public void create(long counts) {
+        AtomicLong atomicLong = new AtomicLong(MAX_ROW_ID.get());
+
+        MAX_ROW_ID.getAndAdd(counts);
 
         List<Benchmark> benchmarks = Collections.synchronizedList(new ArrayList<>());
 
         ExecutorService executorService = Executors.newCachedThreadPool();
 
         Future<?> future = executorService.submit(() -> {
-            while (atomicLong.getAndIncrement() < counts) {
-                benchmarks.add(new Benchmark(atomicLong.get(),
-                        RandomStringUtils.randomAlphanumeric(7)));
+            while (atomicLong.get() < MAX_ROW_ID.get()) {
+                String randomAlphanumeric = RandomStringUtils.randomAlphanumeric(7);
+                if(CACHE.add(randomAlphanumeric))
+                    synchronized(BenchmarkService.class) {
+                        benchmarks.add(new Benchmark(atomicLong.incrementAndGet(), randomAlphanumeric));
+                    }
+                randomAlphanumeric = null;
             }
         });
 
@@ -63,19 +69,13 @@ public class BenchmarkService {
 
     private void saveAll(List<Benchmark> benchmarks) {
         List<List<Benchmark>> batchesOfBenchmarks = ListUtil.createSubList(benchmarks, 5000);
-        try {
-            Connection connection = hikariDataSource.getConnection();
-            Statement statement = connection.createStatement();
-            statement.execute("truncate table public.benchmark");
-        } catch (SQLException e) {
-            throw new BenchMarkCustomException(e);
-        }
         batchesOfBenchmarks.parallelStream().forEach(batch -> saveAllJdbcBatch(batch));
     }
 
     private void saveAllJdbcBatch(List<Benchmark> benchmarks) {
-        try (Connection connection = hikariDataSource.getConnection();
-             PreparedStatement statement = connection.prepareStatement(SQL_INSERT)) {
+        try {
+            Connection connection = getConnection();
+            PreparedStatement statement = createPreparedStatement(connection, SQL_INSERT);
             for (Benchmark benchmark : benchmarks) {
                 statement.clearParameters();
                 statement.setLong(1, benchmark.getId());
@@ -84,9 +84,19 @@ public class BenchmarkService {
             }
             statement.executeBatch();
             statement.clearBatch();
+            statement.close();
+            connection.close();
         } catch (SQLException e) {
             throw new BenchMarkCustomException(e);
         }
+    }
+
+    private Connection getConnection() throws SQLException {
+        return hikariDataSource.getConnection();
+    }
+
+    private static PreparedStatement createPreparedStatement(Connection connection, String sql) throws SQLException {
+        return connection.prepareStatement(sql);
     }
 
 }

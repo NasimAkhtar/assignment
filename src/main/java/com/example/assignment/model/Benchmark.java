@@ -2,10 +2,14 @@ package com.example.assignment.model;
 
 import jakarta.persistence.*;
 
+import java.util.Objects;
+
 @Entity
 public class Benchmark {
   @Id
   private Long id;
+
+  @Column(unique = true)
   private String uniqueCode;
 
   protected Benchmark() {}
