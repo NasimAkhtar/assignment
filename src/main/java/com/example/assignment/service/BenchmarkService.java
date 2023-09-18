@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -24,7 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class BenchmarkService {
 
     private static final Logger logger = LoggerFactory.getLogger(BenchmarkService.class);
-    public static final String SQL_INSERT = "INSERT INTO benchmark (id, unique_code) VALUES (?, ?)";
+    private static final String SQL_INSERT = "INSERT INTO benchmark (id, unique_code) VALUES (?, ?)";
     @Autowired
     BenchmarkRepository repository;
 
@@ -52,8 +53,7 @@ public class BenchmarkService {
                 throw new BenchMarkCustomException(e);
             }
         }
-
-        saveAllJdbcBatchCallable(benchmarks);
+        saveAll(benchmarks);
     }
 
     private void saveUsingJPA(List<Benchmark> benchmarks) {
@@ -61,9 +61,15 @@ public class BenchmarkService {
     }
 
 
-    private void saveAllJdbcBatchCallable(List<Benchmark> benchmarks) {
+    private void saveAll(List<Benchmark> benchmarks) {
         List<List<Benchmark>> batchesOfBenchmarks = ListUtil.createSubList(benchmarks, 5000);
-
+        try {
+            Connection connection = hikariDataSource.getConnection();
+            Statement statement = connection.createStatement();
+            statement.execute("truncate table public.benchmark");
+        } catch (SQLException e) {
+            throw new BenchMarkCustomException(e);
+        }
         batchesOfBenchmarks.parallelStream().forEach(batch -> saveAllJdbcBatch(batch));
     }
 
